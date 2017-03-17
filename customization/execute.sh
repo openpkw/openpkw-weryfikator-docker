@@ -12,6 +12,13 @@ JBOSS_CONFIG=${2:-"$JBOSS_MODE.xml"}
 OPENPKW_DATA_SOURCE="OpenPKWDS"
 OPENPKW_JNDI_NAME="openpkw"
 
+CONNECTION_URL="jdbc:mysql://$OPENPKW_MYSQL_URI/$OPENPKW_MYSQL_DATABASE?useUnicode=true&amp;characterEncoding=UTF-8"
+DATA_SOURCE=$OPENPKW_DATA_SOURCE
+MYSQL_USER=$OPENPKW_MYSQL_USER
+MYSQL_PASSWORD=$OPENPKW_MYSQL_PASSWORD
+JNDI_NAME=java:/jboss/databases/$OPENPKW_JNDI_NAME
+
+
 
 function wait_for_server() {
   until `$JBOSS_CLI -c ":read-attribute(name=server-state)" 2> /dev/null | grep -q running`; do
@@ -26,25 +33,21 @@ echo "=> Waiting for the server to boot"
 wait_for_server
 
 echo "=> Variables"
-echo "=> OPENPKW_MYSQL_DATABASE "$OPENPKW_MYSQL_DATABASE
-echo "=> OPENPKW_MYSQL_USER :"  $OPENPKW_MYSQL_USER
-echo "=> OPENPKW_MYSQL_PASSWORD " $OPENPKW_MYSQL_PASSWORD
-echo "=> OPENPKW_MYSQL_SERVICE_IP : " $OPENPKW_MYSQL_URI
+echo "=> OPENPKW_MYSQL_DATABASE: "$OPENPKW_MYSQL_DATABASE
+echo "=> OPENPKW_MYSQL_USER: "  $OPENPKW_MYSQL_USER
+echo "=> OPENPKW_MYSQL_PASSWORD: " $OPENPKW_MYSQL_PASSWORD
+echo "=> OPENPKW_MYSQL_URI: " $OPENPKW_MYSQL_URI
+
+echo "=> Connection URL: " $CONNECTION_URL
+echo "=> Data Source: " $DATA_SOURCE
+echo "=> JNDI name: " $JNDI_NAME
+echo "=> Mysql User: " $MYSQL_USER
+echo "=> Mysql Password: " $MYSQL_PASSWORD
+
+
 
 $JBOSS_CLI -c << EOF
 batch
-
-set CONNECTION_URL=jdbc:mysql://$OPENPKW_MYSQL_URI/$OPENPKW_MYSQL_DATABASE
-set DATA_SOURCE=$OPENPKW_DATA_SOURCE
-set MYSQL_USER=$OPENPKW_MYSQL_USER
-set MYSQL_PASSWORD=$OPENPKW_MYSQL_PASSWORD
-set JNDI_NAME=$OPENPKW_JNDI_NAME
-
-echo "Connection URL: " $CONNECTION_URL
-echo "Data Source : " $DATA_SOURCE
-echo "JNDI name " $JNDI_NAME
-echo "Mysql User " $MYSQL_USER
-echo "Mysql Password " $MYSQL_PASSWORD
 
 # Add MySQL module
 module add --name=com.mysql --resources=/opt/jboss/wildfly/customization/mysql-connector-java-5.1.31-bin.jar --dependencies=javax.api,javax.transaction.api
@@ -53,7 +56,7 @@ module add --name=com.mysql --resources=/opt/jboss/wildfly/customization/mysql-c
 /subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql,driver-xa-datasource-class-name=com.mysql.jdbc.jdbc2.optional.MysqlXADataSource)
 
 # Add the datasourcee
-data-source add --name=$DATA_SOURCE --driver-name=mysql --jndi-name=java:jboss/datasources/$JNDI_NAME --connection-url=$CONNECTION_URL?useUnicode=true&amp;characterEncoding=UTF-8 --user-name=$MYSQL_USER --password=$MYSQL_PASSWORD --use-ccm=false --max-pool-size=25 --blocking-timeout-wait-millis=5000 --enabled=true
+data-source add --name=$DATA_SOURCE --driver-name=mysql --jndi-name=$JNDI_NAME --connection-url=$CONNECTION_URL --user-name=$MYSQL_USER --password=$MYSQL_PASSWORD --use-ccm=false --max-pool-size=25 --blocking-timeout-wait-millis=5000 --enabled=true
 
 # Execute the batch
 run-batch
