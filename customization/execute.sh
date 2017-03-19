@@ -12,7 +12,7 @@ JBOSS_CONFIG=${2:-"$JBOSS_MODE.xml"}
 OPENPKW_DATA_SOURCE="OpenPKWDS"
 OPENPKW_JNDI_NAME="openpkw"
 
-CONNECTION_URL="jdbc:mysql://$OPENPKW_MYSQL_URI/$OPENPKW_MYSQL_DATABASE?useUnicode=true&amp;characterEncoding=UTF-8"
+CONNECTION_URL="jdbc:mysql://$OPENPKW_MYSQL_URI:$OPENPKW_MYSQL_PORT/$OPENPKW_MYSQL_DATABASE?useUnicode=true&amp;characterEncoding=UTF-8"
 DATA_SOURCE=$OPENPKW_DATA_SOURCE
 MYSQL_USER=$OPENPKW_MYSQL_USER
 MYSQL_PASSWORD=$OPENPKW_MYSQL_PASSWORD
@@ -26,17 +26,36 @@ function wait_for_server() {
   done
 }
 
+function wait_for_mysql() {
+  while true; do
+    echo "show databases" | mysql -h $OPENPKW_MYSQL_URI  -u $OPENPKW_MYSQL_USER --password=$OPENPKW_MYSQL_DATABASE -P $OPENPKW_MYSQL_PORT 2>&1 | grep "$OPENPKW_MYSQL_DATABASE" 
+    result=$?
+    if [[ result -eq 0 ]]; then
+         echo "Found mysql database"   
+      break
+    fi
+    sleep 1
+    echo "."
+ done
+}
+
+
+
 echo "=> Starting WildFly server"
 $JBOSS_HOME/bin/$JBOSS_MODE.sh -b 0.0.0.0 -c $JBOSS_CONFIG &
+ 
+echo "=> Waiting for the database mysql running"
+wait_for_mysql
 
 echo "=> Waiting for the server to boot"
 wait_for_server
 
 echo "=> Variables"
-echo "=> OPENPKW_MYSQL_DATABASE: "$OPENPKW_MYSQL_DATABASE
-echo "=> OPENPKW_MYSQL_USER: "  $OPENPKW_MYSQL_USER
+echo "=> OPENPKW_MYSQL_DATABASE: " $OPENPKW_MYSQL_DATABASE
+echo "=> OPENPKW_MYSQL_USER: "  $OPENPKW_MYSQL_USER 
 echo "=> OPENPKW_MYSQL_PASSWORD: " $OPENPKW_MYSQL_PASSWORD
 echo "=> OPENPKW_MYSQL_URI: " $OPENPKW_MYSQL_URI
+echo "=> OPENPKW_MYSQL_PORT ": $OPENPKW_MYSQL_PORT
 
 echo "=> Connection URL: " $CONNECTION_URL
 echo "=> Data Source: " $DATA_SOURCE
@@ -71,6 +90,10 @@ if [ "$JBOSS_MODE" = "standalone" ]; then
 else
   $JBOSS_CLI -c "/host=*:shutdown"
 fi
+
+# Is our database running wait for database
+
+
 
 echo "=> Restarting WildFly"
 $JBOSS_HOME/bin/$JBOSS_MODE.sh -b 0.0.0.0 -c $JBOSS_CONFIG
